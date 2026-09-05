@@ -57,7 +57,7 @@ export interface WebUpgradeRoute {
 
 /** Web server listen and response-compression config. */
 export interface Config {
-  /** Listen host; the two supported values are loopback and all-interfaces. */
+  /** Listen host; `127.0.0.1` is loopback, `0.0.0.0` binds every interface. */
   host: '127.0.0.1' | '0.0.0.0'
   /** Listen port; zero requests an OS-assigned port. */
   port: number

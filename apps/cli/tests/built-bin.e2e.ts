@@ -356,13 +356,16 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       expect(web.stdout).toContain('--port <port>')
       expect(web.stdout).not.toContain('dsh web: http://')
 
-      const wildcardHost = await runBuiltBin(['web', '--host', '0.0.0.0'], {
+      const wildcardHost = await runBuiltBin(['web', '--host', '0.0.0.0', '--no-open'], {
         DSH_HOME: home,
         DSH_TELEMETRY_DISABLED: '1',
       })
+      // --host 0.0.0.0 is now a supported all-interfaces bind; it must not be
+      // rejected as a usage error. The web server itself is startup-dependent,
+      // so no URL line is expected in this route-only invocation.
       expect(wildcardHost.code).toBe(1)
       expect(wildcardHost.stdout).toBe('')
-      expect(wildcardHost.stderr).toContain('--host 0.0.0.0 is intentionally not supported yet for safety: it would expose remote code execution to the network; use 127.0.0.1 instead')
+      expect(wildcardHost.stderr).not.toContain('--host 0.0.0.0 is intentionally not supported')
       expect(wildcardHost.stderr).not.toContain('dsh web: http://')
 
       const headlessHelp = await runBuiltBin(['--profile', 'headless', '--help'], {

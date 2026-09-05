@@ -126,7 +126,10 @@ try {
  *
  * Derived entries are port-less IP literals: DNS rebinding needs an
  * attacker-controlled name, while an IP-literal Host is safe on any port and
- * an OS-assigned port is unknowable before bind.
+ * an OS-assigned port is unknowable before bind. A loopback bind contributes
+ * no LAN addresses; every explicit `--trusted-host` authority is preserved
+ * so reverse-proxy deployments (which front the UI with a public hostname and
+ * forward to the loopback bind) can admit the public authority.
  * @param bindHost - the active webserver bind host.
  * @param extra - explicit `--trusted-host` values, in argument order.
  * @returns the LAN display addresses and invocation-derived fence authorities.

@@ -32,9 +32,11 @@ FROM --platform=${TARGETPLATFORM:-linux/arm64} node:24-bookworm-slim
 
 # Build & runtime toolchain. Git is needed both for build (DSH_CLIENT_COMMIT_HASH
 # via `git rev-parse HEAD`) and at runtime (agent git tool). Bash is for the
-# agent shell surface.
+# agent shell surface. make, g++ and python3 are node-gyp prerequisites:
+# the session lock's fs-ext binding compiles via node-gyp at install (the
+# native dependency closure on the mounted volume is matched at build time).
 RUN apt-get update \
-  && apt-get install --no-install-recommends --yes git ca-certificates bash \
+  && apt-get install --no-install-recommends --yes git ca-certificates bash make g++ python3 \
   && rm -rf /var/lib/apt/lists/*
 
 # Repository package manager, pinned to the lockfile's corepack version.

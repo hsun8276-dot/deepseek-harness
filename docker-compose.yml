@@ -1,0 +1,78 @@
+# dsh Web GUI deployment (Docker Compose).
+#
+# Topology: the container binds 0.0.0.0:3080 (all interfaces) inside the
+# container network — dsh web now supports `--host 0.0.0.0` so the GUI is
+# reachable from other devices through a reverse proxy or an intranet tunnel.
+# The host should publish ONLY loopback (127.0.0.1:3080:3080) so a reverse
+# proxy outside Docker (the host's nginx / Tailscale funnel, as on this
+# deployment) fronts the published port and terminates TLS + authentication
+# before forwarding. Do NOT publish 0.0.0.0:3080 to the host network unless
+# the proxy handles it; the Web GUI executes model tool calls (remote code
+# execution) and must never be exposed unauthenticated.
+#
+# Trusted authority: the deployment's public hostname is declared with
+# --trusted-host so the /api fence and the injected __DSH_TRUSTED_HOSTS__
+# browser global treat pages opened at that host as loopback-equivalent,
+# granting settings persistence. Without it, non-loopback pages fall back to
+# the memory-only settings path (dsh default).
+#
+# Secrets are NEVER baked into image layers: the DeepSeek API key is read at
+# startup from the DEEPSEEK_API_KEY environment variable (passed through an
+# untracked .env file), and access credentials/token live in $DSH_HOME (the
+# mounted volume), seeded on first run.
+#
+# Usage:
+#   cp .env.example .env          # then edit secrets + trusted host
+#   docker compose up -d --build
+#   docker compose logs -f dsh
+#   docker compose ps
+
+services:
+  dsh:
+    build:
+      context: .
+      # Target architecture: the deployment server is aarch64 (ARM64).
+      # The platform is set via the Dockerfile's FROM --platform=$TARGETPLATFORM
+      # so buildx propagates the correct base image variant. When building
+      # natively on an ARM64 host, docker compose build defaults to the host
+      # architecture. Cross-building on x86_64 for arm64 requires
+      # DOCKER_DEFAULT_PLATFORM=linux/arm64 or docker buildx bake.
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+    image: deepseek-harness/dsh-web:local
+    container_name: dsh-web
+    restart: unless-stopped
+    # Publish only loopback on the host; the reverse proxy / intranet tunnel
+    # fronts this port. The container itself binds 0.0.0.0 (see command below).
+    ports:
+      - "127.0.0.1:${DSH_PORT:-3080}:3080"
+    volumes:
+      # Persistent dsh home: settings.yaml, .credentials.yaml, session logs,
+      # agent presets. All secret material lives here, never in image layers.
+      - dsh-data:/data
+    environment:
+      DSH_HOME: /data
+      # DeepSeek API key consumed at startup via the credential-ref mechanism.
+      # Supply through .env; leave empty to configure via the Models settings
+      # page in the GUI instead.
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    # The GUI binds all interfaces so other devices can reach it through the
+    # reverse proxy / intranet tunnel. Repeat --trusted-host per additional
+    # authority.
+    command:
+      - web
+      - --host
+      - 0.0.0.0
+      - --port
+      - "3080"
+      - --no-open
+      - --trusted-host
+      - ${DSH_TRUSTED_HOST:-ubuntu-arm.tailbc8e40.ts.net}
+
+volumes:
+  dsh-data:
+    # A named volume keeps dsh home across `docker compose down`/up. For an
+    # operator that prefers a bind mount to an existing ~/.dsh, replace the
+    # volume entry with:
+    #   - /home/adminroot/.dsh:/data
+    name: dsh-data

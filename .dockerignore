@@ -1,0 +1,35 @@
+# Dependency directories — node_modules is installed fresh inside the build
+# stage (host-built binaries must match the build platform, and shipping a
+# cross-platform store would be wrong).
+node_modules/
+
+# Git data: .git itself must reach the build stage — the build embeds
+# DSH_CLIENT_COMMIT_HASH via `git rev-parse HEAD` and records dirty state — but
+# the runtime stage strips it again before the image is finalized. Only the
+# per-user .gitignore is kept out of the context.
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+*.tsbuildinfo
+*.log
+build-*.log
+dsh-*.txt
+
+# Build records
+.dsh-build/
+
+# IDE and local config
+.claude/
+Memory*
+.vscode/
+.idea/
+
+# Lefthook hooks
+dsh-hooks/
+
+# OS files
+.DS_Store
+Thumbs.db

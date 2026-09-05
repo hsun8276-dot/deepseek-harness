@@ -1,0 +1,61 @@
+# Build Docker image on GitHub Actions and export as downloadable tar.
+#
+# Trigger: manual (workflow_dispatch) — go to the Actions tab, select this
+# workflow, and click "Run workflow".  The image is built on ubuntu-24.04
+# (free runner, 2 vCPU / 7 GB RAM), then saved as a compressed tar and
+# uploaded as an artifact.  Download the artifact, extract, and load locally:
+#
+#   docker load -i dsh-web.tar.gz
+#
+# The image does NOT require CPU virtualization to load or run — only
+# docker build does, and that happens here in the cloud.
+#
+# NOTE: the target server is an aarch64 (ARM64) Ubuntu box, so we build with
+# --platform linux/arm64.  The x86_64 runner cross-builds via qemu: the
+# docker/setup-qemu-action step registers binfmt emulation so arm64 RUN
+# steps can execute, producing a native arm64 image that needs no emulation
+# at runtime on the ARM server.
+
+name: Build Docker Image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and save Docker image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up QEMU
+        # Registers binfmt emulation so arm64 RUN steps execute on the x86_64
+        # runner (cross-build breaks with "exec format error" without this).
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (arm64)
+        run: docker buildx build --platform linux/arm64 --load -t dsh-web:latest .
+
+      - name: Save image as compressed tar
+        run: |
+          docker save dsh-web:latest | gzip > /tmp/dsh-web.tar.gz
+          echo "Image size:"
+          ls -lh /tmp/dsh-web.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-image
+          path: /tmp/dsh-web.tar.gz
+          retention-days: 7

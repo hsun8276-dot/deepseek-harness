@@ -28,7 +28,10 @@ jobs:
   build:
     name: Build and save Docker image
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # QEMU-emulated arm64 builds the whole monorepo in software; the full
+    # pnpm run build alone takes ~40 min under emulation, so 60 is not enough.
+    # 120 leaves slack for the remaining bundle builds and the docker save gzip.
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
